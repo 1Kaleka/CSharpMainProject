@@ -36,10 +36,9 @@ namespace UnitBrains.Player
 
         protected override List<Vector2Int> SelectTargets()
         {
-            ///////////////////////////////////////
-            // Homework 1.4 (1st block, 4rd module)
-            ///////////////////////////////////////
             List<Vector2Int> result = GetReachableTargets();
+            Vector2Int pos = Vector2Int.left;
+            DistanceToOwnBase(pos);
             while (result.Count > 1)
             {
                 result.RemoveAt(result.Count - 1);
