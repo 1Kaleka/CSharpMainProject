@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using Model.Runtime.Projectiles;
 using UnityEngine;
 
@@ -37,8 +38,20 @@ namespace UnitBrains.Player
         protected override List<Vector2Int> SelectTargets()
         {
             List<Vector2Int> result = GetReachableTargets();
-            Vector2Int pos = Vector2Int.left;
-            DistanceToOwnBase(pos);
+            var minDistance = float.MaxValue;
+            var bestTarget = Vector2Int.zero;
+            foreach (var target in result )
+            {
+                var distance = DistanceToOwnBase(target);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    bestTarget = target;
+                }
+            }
+            result.Clear();
+            if (minDistance < float.MaxValue)
+                result.Add(bestTarget);    
             while (result.Count > 1)
             {
                 result.RemoveAt(result.Count - 1);
