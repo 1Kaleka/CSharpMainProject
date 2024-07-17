@@ -1,8 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using Model;
 using Model.Runtime.Projectiles;
 using UnityEngine;
+using Utilities;
 
 namespace UnitBrains.Player
 {
@@ -32,15 +34,18 @@ namespace UnitBrains.Player
 
         public override Vector2Int GetNextStep()
         {
-            return base.GetNextStep();
+            var target = _currTarget.Count > 0 ? _currTarget[0] : unit.Pos;
+            return IsTargetInRange(target) ? unit.Pos : unit.Pos.CalcNextStepTowards(target); 
         }
+        private readonly List<Vector2Int> _currTarget = new();
+        
 
         protected override List<Vector2Int> SelectTargets()
         {
-            List<Vector2Int> result = GetReachableTargets();
+            var result = new List<Vector2Int>();
             var minDistance = float.MaxValue;
             var bestTarget = Vector2Int.zero;
-            foreach (var target in result )
+            foreach (var target in GetAllTargets())
             {
                 var distance = DistanceToOwnBase(target);
                 if (distance < minDistance)
@@ -49,13 +54,21 @@ namespace UnitBrains.Player
                     bestTarget = target;
                 }
             }
-            result.Clear();
+
+            _currTarget.Clear();
             if (minDistance < float.MaxValue)
-                result.Add(bestTarget);    
-            while (result.Count > 1)
             {
-                result.RemoveAt(result.Count - 1);
+                _currTarget.Add(bestTarget);    
+                if (IsTargetInRange(bestTarget))
+                {
+                    result.Add(bestTarget);
+                }
             }
+            else
+            {
+                _currTarget.Add(runtimeModel.RoMap.Bases [
+                    IsPlayerUnitBrain ? RuntimeModel.BotPlayerId : RuntimeModel.PlayerId]);
+            }            
             return result;
             ///////////////////////////////////////
         }
