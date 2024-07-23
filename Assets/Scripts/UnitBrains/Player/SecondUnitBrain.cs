@@ -1,8 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using JetBrains.Annotations;
 using Model;
 using Model.Runtime.Projectiles;
+using Palmmedia.ReportGenerator.Core.Parser.Analysis;
 using UnityEngine;
 using Utilities;
 
@@ -16,6 +18,12 @@ namespace UnitBrains.Player
         private float _temperature = 0f;
         private float _cooldownTime = 0f;
         private bool _overheated;
+
+        private readonly List<Vector2Int> _currTarget = new();
+
+        private const int ClosestTargetsToAttack = 4;
+        private static int _instanceCounter = 0;
+        private int _unitNumber = _instanceCounter++;
         
         protected override void GenerateProjectiles(Vector2Int forTarget, List<BaseProjectile> intoList)
         {
@@ -37,38 +45,31 @@ namespace UnitBrains.Player
             var target = _currTarget.Count > 0 ? _currTarget[0] : unit.Pos;
             return IsTargetInRange(target) ? unit.Pos : unit.Pos.CalcNextStepTowards(target); 
         }
-        private readonly List<Vector2Int> _currTarget = new();
         
 
         protected override List<Vector2Int> SelectTargets()
         {
-            var result = new List<Vector2Int>();
-            var minDistance = float.MaxValue;
-            var bestTarget = Vector2Int.zero;
+            List<Vector2Int> result = new List<Vector2Int>();
+            _currTarget.Clear();
             foreach (var target in GetAllTargets())
             {
-                var distance = DistanceToOwnBase(target);
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    bestTarget = target;
-                }
+                _currTarget.Add(target);
             }
 
-            _currTarget.Clear();
-            if (minDistance < float.MaxValue)
+            if (_currTarget.Count == 0)
             {
-                _currTarget.Add(bestTarget);    
-                if (IsTargetInRange(bestTarget))
-                {
-                    result.Add(bestTarget);
-                }
-            }
-            else
-            {
-                _currTarget.Add(runtimeModel.RoMap.Bases [
+                _currTarget.Add(runtimeModel.RoMap.Bases[
                     IsPlayerUnitBrain ? RuntimeModel.BotPlayerId : RuntimeModel.PlayerId]);
-            }            
+            }
+            SortByDistanceToOwnBase(_currTarget);
+
+            var myTargetNum = _unitNumber % ClosestTargetsToAttack;
+            var targetNum = Mathf.Min(myTargetNum, _currTarget.Count - 1);
+            var bestTarget = _currTarget[targetNum];
+            if (IsTargetInRange(bestTarget))
+            {
+                result.Add(bestTarget);
+            }
             return result;
             ///////////////////////////////////////
         }
