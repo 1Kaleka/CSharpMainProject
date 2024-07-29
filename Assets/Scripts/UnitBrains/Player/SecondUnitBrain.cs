@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using JetBrains.Annotations;
+using log4net.Util;
 using Model;
 using Model.Runtime.Projectiles;
 using Palmmedia.ReportGenerator.Core.Parser.Analysis;
@@ -24,7 +26,7 @@ namespace UnitBrains.Player
         private const int ClosestTargetsToAttack = 4;
         private static int _instanceCounter = 0;
         private int _unitNumber = _instanceCounter++;
-        
+
         protected override void GenerateProjectiles(Vector2Int forTarget, List<BaseProjectile> intoList)
         {
             float overheatTemperature = OverheatTemperature;
@@ -63,6 +65,7 @@ namespace UnitBrains.Player
             }
             SortByDistanceToOwnBase(_currTarget);
 
+
             var myTargetNum = _unitNumber % ClosestTargetsToAttack;
             var targetNum = Mathf.Min(myTargetNum, _currTarget.Count - 1);
             var bestTarget = _currTarget[targetNum];
@@ -70,6 +73,7 @@ namespace UnitBrains.Player
             {
                 result.Add(bestTarget);
             }
+
             return result;
             ///////////////////////////////////////
         }
