@@ -27,7 +27,9 @@ public class PathNode
     }
     public void CalculateValue()
     {
+
         Value = Cost + Estimate;
+
     }
     public override bool Equals(object? obj)
     {
