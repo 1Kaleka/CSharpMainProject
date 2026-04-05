@@ -1,78 +1,61 @@
-using Codice.Client.BaseCommands;
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using Model;
+using UnitBrains.Pathfinding;
 using UnitBrains.Player;
 using UnityEngine;
-using UnityEngine.PlayerLoop;
 
 public class ThirdUnitBrain : DefaultPlayerUnitBrain
 {
     public override string TargetUnitName => "Ironclad Behemoth";
-    private bool IsMoving = false;
-    private bool IsShooting = false;
-    private int MovingCooldownCounter = 0;
-    private int ShootingCooldownCounter = 0;
 
-    private List<Vector2Int> Targets = new List<Vector2Int>();
-    private List<Vector2Int> WithoutTargets = new List<Vector2Int>();
-
-
-    public override Vector2Int GetNextStep()
+    private enum UnitState
     {
-        if (!Targets.Any() && MovingCooldownCounter >= 4)
-        {
-            IsMoving = true;
-            return base.GetNextStep();
-        }
-        else
-        {
-            IsMoving = false;
-            return unit.Pos;
-        }
+        Move,
+        Attack
     }
-
-
-
-    protected override List<Vector2Int> SelectTargets()
-    {
-        Targets.Clear();
-        Targets = GetReachableTargets();
-
-        if (Targets.Any() && ShootingCooldownCounter >= 2)
-        {
-            IsShooting = true;
-            while (Targets.Count > 1)
-            {
-                Targets.RemoveAt(Targets.Count - 1);
-            }
-            return Targets;
-        }
-        else
-        {
-            IsShooting = false;
-            return WithoutTargets;
-        }
-
-
-
-
-    }
-
-
+   
+    private UnitState _currentState = UnitState.Move;
+    private bool _isSwitching = false;
+    private float _switchingTime = 0f;
+    private const float _switchingDuration = 1f;
 
     public override void Update(float deltaTime, float time)
     {
-        if (!IsShooting)
-            MovingCooldownCounter++;
-        else
-            MovingCooldownCounter = 0;
+        if (_isSwitching)
+        {
+            if ((_switchingTime + _switchingDuration) < time)
+            {
+                _isSwitching = false;
+                _currentState = _currentState == UnitState.Move ? UnitState.Attack : UnitState.Move;
+            }
+        }
+        else 
+        {
+            bool hasTargetsInRange = HasTargetsInRange();
 
-        if (!IsMoving)
-            ShootingCooldownCounter++;
-        else
-            ShootingCooldownCounter = 0;
+            if (hasTargetsInRange && _currentState == UnitState.Move
+            || !hasTargetsInRange && _currentState == UnitState.Attack)
+            {
+                _isSwitching = true;
+                _switchingTime = time;
+            }
+        }
+    }
+
+    public override Vector2Int GetNextStep()
+    {
+        if (_currentState == UnitState.Attack)
+            return unit.Pos;
+
+        return base.GetNextStep();
+    }
+
+    protected override List<Vector2Int> SelectTargets()
+    {
+        if (_currentState == UnitState.Move)
+            return new List<Vector2Int>();
+        
+        return base.SelectTargets();
     }
 }
-

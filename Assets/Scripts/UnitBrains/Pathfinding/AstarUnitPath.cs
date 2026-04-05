@@ -1,88 +1,94 @@
-using Codice.Client.Common.GameUI;
-using Model;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using UnitBrains.Pathfinding;
+using Model;
 using UnityEngine;
-using Utilities;
-using static UnityEngine.GraphicsBuffer;
 
-public class AstarUnitPath : BaseUnitPath
+namespace UnitBrains.Pathfinding
 {
-    private Vector2Int[] dxy = { new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(1, 0), new Vector2Int(0, -1) };
-
-    public AstarUnitPath(IReadOnlyRuntimeModel runtimeModel, Vector2Int startPoint, Vector2Int endPoint) : base(runtimeModel, startPoint, endPoint)
+    public class AStarUnitPath : BaseUnitPath
     {
-    }
+        private int _maxCountLoop = 100;
 
-    protected override void Calculate()
-    {
-        List<Vector2Int> result = FindPath();
+        private BaseUnitBrain _baseUnitBrain;
 
-        path = result.ToArray();
-    }
-
-    private List<Vector2Int> FindPath()
-    {
-        PathNode startNode = new PathNode(startPoint);
-        PathNode targetNode = new PathNode(endPoint);
-
-        List<PathNode> openList = new List<PathNode> { startNode };
-        List<PathNode> closedList = new List<PathNode>();
-
-        while (openList.Count > 0)
+        private List<Vector2Int> _diffVectors = new List<Vector2Int>()
         {
-            PathNode currentNode = openList[0];
+            new (1, -1),
+            new (1, 1),
+            new (1, 0),
+            new (-1, -1),
+            new (-1, 1),
+            new (-1, 0),
+            new (0, -1),
+            new (0, 1)
+        };
 
-            foreach (var node in openList)
-            {
-                if (node.Value < currentNode.Value)
-                    currentNode = node;
-            }
-
-            openList.Remove(currentNode);
-            closedList.Add(currentNode);
-
-            if (currentNode.Position == targetNode.Position)
-            {
-                List<Vector2Int> path = new List<Vector2Int>();
-
-                while (currentNode != null)
-                {
-                    path.Add(currentNode.Position);
-                    currentNode = currentNode.Parent;
-                }
-
-                path.Reverse();
-                return path;
-            }
-
-            for (int i = 0; i < dxy.Length; i++)
-            {
-                Vector2Int newPos = currentNode.Position + dxy[i];
-
-                if (runtimeModel.IsTileWalkable(newPos) || newPos == targetNode.Position || IsUnitAtPos(newPos))
-                {
-
-                    PathNode neighbor = new PathNode(newPos);
-                    if (closedList.Contains(neighbor) || openList.Contains(neighbor))
-                        continue;
-
-                    neighbor.Parent = currentNode;
-                    neighbor.CalculateEstimate(targetNode.Position);
-                    neighbor.CalculateValue();
-
-                    openList.Add(neighbor);
-                }
-            }
+        public AStarUnitPath (IReadOnlyRuntimeModel runtimeModel, Vector2Int startPoint, Vector2Int endPoint, BaseUnitBrain baseUnitBrain)
+            : base (runtimeModel, startPoint, endPoint)
+        {
+            this._baseUnitBrain = baseUnitBrain;
         }
-        return new List<Vector2Int> { startPoint, startPoint };
+
+        protected override void Calculate()
+        {
+            AStarNode startNode = new AStarNode(startPoint);
+
+            List<AStarNode> openList = new List<AStarNode>() { startNode };
+            List<AStarNode> closedList = new List<AStarNode>();
+
+            var counterLoopBreaker = 0;
+            while (openList.Count > 0 && counterLoopBreaker++ < _maxCountLoop)
+            {
+                AStarNode currentNode = openList[0];
+
+                foreach (var node in openList)
+                {
+                    if (node.Value < currentNode.Value)
+                        currentNode = node;
+                }
+
+                openList.Remove(currentNode);
+                closedList.Add(currentNode);
+
+                if (_baseUnitBrain.IsTargetInRange(endPoint, currentNode.Pos))
+                {
+                    List<AStarNode> pathBuilding = new List<AStarNode>();
+
+                    while (currentNode != null)
+                    {
+                        pathBuilding.Add(currentNode);
+                        currentNode = currentNode.Parent;
+                    }
+
+                    pathBuilding.Reverse();
+                    path = pathBuilding.Select(node => node.Pos).ToArray();
+                    return;
+                }
+
+                foreach (var diffPos in _diffVectors)
+                {
+                    Vector2Int newPos = new();
+                    newPos = currentNode.Pos + diffPos;
+
+                    if (runtimeModel.IsTileWalkable(newPos))
+                    {
+                        AStarNode neighbor = new AStarNode(newPos);
+
+                        if (closedList.Contains(neighbor))
+                            continue;
+
+                        neighbor.Parent = currentNode;
+                        neighbor.CalculateEstimate(endPoint);
+                        neighbor.CalculateValue();
+
+                        openList.Add(neighbor);
+                    }
+                }
+            }
+
+            var defaultPath = new List<Vector2Int> { startPoint, startPoint };
+            path = defaultPath.ToArray();
+        }
     }
-
-    private bool IsUnitAtPos(Vector2Int pos) =>
-        runtimeModel.RoUnits.Any(u => u.Pos == pos);
-
 }
-
